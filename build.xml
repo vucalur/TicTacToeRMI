@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<project name="RMI" default="compile" basedir=".">
+    <property name="dest" value="build/classes"/>
+    <property name="src" value="src"/>
+    <property name="jars" value="jars"/>
+
+    <path id="classpath">
+        <pathelement location="${jars}/common.jar"/>
+        <pathelement location="${dest}/server"/>
+        <pathelement location="${dest}/client"/>
+    </path>
+
+    <target name="-create_dirs">
+        <mkdir dir="${dest}"/>
+        <mkdir dir="${dest}/common"/>
+        <mkdir dir="${dest}/server"/>
+        <mkdir dir="${dest}/client"/>
+        <mkdir dir="${jars}"/>
+    </target>
+
+    <target name="compile" depends="-create_dirs">
+        <javac srcdir="${src}/common" destdir="${dest}/common" />
+
+        <jar destfile="${jars}/common.jar">
+            <fileset dir="${dest}/common" includes="**/*.class"/>
+        </jar>
+        
+        <copy file="${jars}/common.jar" todir="/tmp/"/>
+
+        <javac srcdir="${src}/server" destdir="${dest}/server" >
+            <classpath refid="classpath"/>
+        </javac>
+
+        <javac srcdir="${src}/client" destdir="${dest}/client" >
+            <classpath refid="classpath"/>
+        </javac>
+    </target>
+
+<!--java -Djava.rmi.server.codebase=file:/tmp/common.jar -Djava.rmi.server.hostname=192.168.0.6 -Djavrity.policy=dummy.policy -Dhost=192.168.0.6 -Dport=1100 -DobjectName=ttt -classpath /home/wojtek/Dropbox/home/wojtek/Documents/EAIE_Informatyka/06_sem/rozpro/2-zad/tttrmi/jars/common.jar:/home/wojtek/Dropbox/home/wojtek/Documents/EAIE_Informatyka/06_sem/rozpro/2-zad/tttrmi/build/classes/server:/home/wojtek/Dropbox/home/wojtek/Documents/EAIE_Informatyka/06_sem/rozpro/2-zad/tttrmi/build/classes/client -Dnick=jan2 client.Client-->
+
+    <target name="start_server">
+        <java fork="true" classname="server.TicTacToeServer">
+            <classpath refid="classpath"/>
+            <jvmarg value="-Djava.rmi.server.codebase=file:/tmp/common.jar"/>
+            <jvmarg value="-Djava.rmi.server.hostname=192.168.0.6"/>
+            <jvmarg value="-Djava.security.policy=dummy.policy"/>
+            <jvmarg value="-Dhost=192.168.0.6"/>
+            <jvmarg value="-Dport=1100"/>
+            <jvmarg value="-DobjectName=ttt"/>
+        </java>
+    </target>
+
+    <target name="start_client">
+        <java fork="true" classname="client.Client">
+            <classpath refid="classpath"/>
+            <jvmarg value="-Djava.rmi.server.codebase=file:/tmp/common.jar"/>
+            <jvmarg value="-Djava.rmi.server.hostname=192.168.0.6"/>
+            <jvmarg value="-Djava.security.policy=dummy.policy"/>
+            <jvmarg value="-Dhost=192.168.0.6"/>
+            <jvmarg value="-Dport=1100"/>
+            <jvmarg value="-DobjectName=ttt"/>
+            <jvmarg value="-Dnick=jan"/>
+        </java>
+    </target>
+
+    <target name="start_client_2">
+        <java fork="true" classname="client.Client">
+            <classpath refid="classpath"/>
+            <jvmarg value="-Djava.rmi.server.codebase=file:/tmp/common.jar"/>
+            <jvmarg value="-Djava.rmi.server.hostname=192.168.0.6"/>
+            <jvmarg value="-Djava.security.policy=dummy.policy"/>
+            <jvmarg value="-Dhost=192.168.0.6"/>
+            <jvmarg value="-Dport=1100"/>
+            <jvmarg value="-DobjectName=ttt"/>
+            <jvmarg value="-Dnick=tomek"/>
+        </java>
+    </target>
+
+    <target name="clean">
+        <delete includeemptydirs="true" verbose="true" failonerror="false">
+            <fileset dir="${jars}"/>
+            <fileset dir="${dest}"/>
+        </delete>
+    </target>
+</project>
