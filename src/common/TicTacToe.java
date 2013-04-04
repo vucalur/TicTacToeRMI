@@ -17,7 +17,9 @@ public interface TicTacToe extends Remote {
 
     void beginPlayingWithBot(String nick, Board board) throws RemoteException;
 
-    void markAvailable(String nick) throws RemoteException;
+    Board makeBotMove(String nick, Board board) throws RemoteException;
 
-    void makeBotMove(String nick, Board board) throws RemoteException;
+    void challengeOpponent(String me, String opponent) throws RemoteException;
+
+    void notifyOpponentYourMove(String opponent, Board board) throws RemoteException;
 }

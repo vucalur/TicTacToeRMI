@@ -56,11 +56,6 @@ public class Board implements Serializable {
         return String.valueOf(sb);
     }
 
-    /**
-     * TODO: update javadoc
-     * Method is not synchronized - it assumes it will not be invoked in circumstances that might cause a race condition,
-     * therefore invoker must care for thread-safety
-     */
     public Sign whoseMove() {
         int circlesCount = 0;
         int crossesCount = 0;
@@ -85,15 +80,8 @@ public class Board implements Serializable {
     }
 
     public void makeRandomBotMove() {
-//        try {
-//            TimeUnit.SECONDS.sleep(3);
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-//        }
-//
-//        System.out.println("ja pierd");
-        List<Integer> shuffled1 = Arrays.asList(1, 2, 3);
-        List<Integer> shuffled2 = Arrays.asList(1, 2, 3);
+        List<Integer> shuffled1 = Arrays.asList(0, 1, 2);
+        List<Integer> shuffled2 = Arrays.asList(0, 1, 2);
         Collections.shuffle(shuffled1);
         Collections.shuffle(shuffled2);
         for (int i : shuffled1) {

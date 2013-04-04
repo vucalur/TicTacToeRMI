@@ -59,54 +59,55 @@ public class TicTacToeImpl extends UnicastRemoteObject implements TicTacToe {
     }
 
     @Override
-    public void beginPlayingWithBot(final String nick, final Board board) throws RemoteException {
+    public synchronized void beginPlayingWithBot(final String nick, final Board board) throws RemoteException {
         freeNicks.remove(nick);
         loggedUsers.get(nick).setPlaysWith(User.BOT);
-//        final Object lock = new Object();
-        ClientListener clientListenerNonFinal;
-        synchronized (this) {
-            clientListenerNonFinal = loggedUsers.get(nick).getListener();
-        }
-        final ClientListener clientListener = clientListenerNonFinal;
-        Runnable executor = new Runnable() {
+    }
+
+    @Override
+    public Board makeBotMove(String nick, final Board board) throws RemoteException {
+        Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
-                Board localBoard = board;
-                while (true) {
-                    try {
-                        localBoard = clientListener.makeMoveAgainstBot(localBoard);
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                        return;
-                    }
-                    if (localBoard.someoneHasWon()) {
-                        freeNicks.add(nick);
-                        return;
-                    }
-                    System.out.println("111");
-                    localBoard.makeRandomBotMove();
-                    System.out.println("222");
-                }
+                board.makeRandomBotMove();
             }
-        };
-//        locks.put(nick, lock);
-        executors.put(nick, executor);
-        executorService.submit(executor);
-//        new Thread(executor).start();
-    }
-
-    // TODO: remove if unused
-    @Override
-    public void markAvailable(String nick) throws RemoteException {
-        freeNicks.add(nick);
+        });
+        t.start();
+        try {
+            t.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        return board;
     }
 
     @Override
-    public void makeBotMove(String nick, Board board) throws RemoteException {
-//        Object lock = locks.get(nick);
-//        synchronized (lock) {
-//            //TODO
-//        }
+    public synchronized void challengeOpponent(String me, String opponent) throws RemoteException {
+        freeNicks.remove(me);
+        freeNicks.remove(opponent);
+        User uMe = loggedUsers.get(me);
+        User uOpponent = loggedUsers.get(opponent);
+        uOpponent.setPlaysWith(uMe);
+        uMe.setPlaysWith(uOpponent);
+
+        uOpponent.getListener().notifyGameStarted(me);
+    }
+
+    @Override
+    public void notifyOpponentYourMove(final String opponent, final Board board) throws RemoteException {
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                loggedUsers.get(opponent).getListener().notifyYourMove(board);
+            }
+        });
+        t.start();
+        try {
+            t.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     private synchronized void remove(String nick) {
