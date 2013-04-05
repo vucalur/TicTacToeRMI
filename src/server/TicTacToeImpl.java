@@ -2,6 +2,7 @@ package server;
 
 import common.ClientListener;
 import common.TicTacToe;
+import common.enums.Sign;
 import common.exceptions.DuplicateNickException;
 import common.exceptions.ReservedBotNickException;
 import common.model.Board;
@@ -13,15 +14,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class TicTacToeImpl extends UnicastRemoteObject implements TicTacToe {
-    private final Map<String, Runnable> executors = new HashMap<>();
-    ExecutorService executorService = Executors.newCachedThreadPool();
     private Map<String, User> loggedUsers = new HashMap<>();
     private List<String> freeNicks = new ArrayList<>(); // currently not playing
-//    private Map<String, Object> locks = new HashMap<>();
 
 
     protected TicTacToeImpl() throws RemoteException {
@@ -44,15 +40,6 @@ public class TicTacToeImpl extends UnicastRemoteObject implements TicTacToe {
     }
 
     @Override
-    public synchronized void logout(String nick) throws RemoteException {
-        if (!freeNicks.contains(nick)) {
-            throw new IllegalArgumentException("no such user");
-        }
-        remove(nick);
-        System.out.println(nick + " has left");
-    }
-
-    @Override
     public synchronized List<String> getFreeNicks() throws RemoteException {
         List<String> result = new ArrayList<>(freeNicks);
         return result;
@@ -61,7 +48,6 @@ public class TicTacToeImpl extends UnicastRemoteObject implements TicTacToe {
     @Override
     public synchronized void beginPlayingWithBot(final String nick, final Board board) throws RemoteException {
         freeNicks.remove(nick);
-        loggedUsers.get(nick).setPlaysWith(User.BOT);
     }
 
     @Override
@@ -85,29 +71,44 @@ public class TicTacToeImpl extends UnicastRemoteObject implements TicTacToe {
     public synchronized void challengeOpponent(String me, String opponent) throws RemoteException {
         freeNicks.remove(me);
         freeNicks.remove(opponent);
-        User uMe = loggedUsers.get(me);
         User uOpponent = loggedUsers.get(opponent);
-        uOpponent.setPlaysWith(uMe);
-        uMe.setPlaysWith(uOpponent);
 
         uOpponent.getListener().notifyGameStarted(me);
     }
 
     @Override
-    public void notifyOpponentYourMove(final String opponent, final Board board) throws RemoteException {
+    public void beginGame(String nick, String chosenOpponent) throws RemoteException {
+        challengeOpponent(nick, chosenOpponent);
+        final ClientListener meListener = loggedUsers.get(nick).getListener();
+        final ClientListener oppoListener = loggedUsers.get(chosenOpponent).getListener();
+        final Sign meSign = Sign.NON_BOT_SIGN;
+        final Sign oppoSign = Sign.BOT_SIGN;
+
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
-                loggedUsers.get(opponent).getListener().notifyYourMove(board);
+                try {
+                    Board board = new Board();
+                    while (!board.someoneHasWonOrTie()) {
+                        board = meListener.makeMove(board, meSign);
+                        if (board.someoneHasWonOrTie()) {
+                            meListener.notifyEndOfGame(board, meSign);
+                            oppoListener.notifyEndOfGame(board, oppoSign);
+                            return;
+                        }
+                        board = oppoListener.makeMove(board, oppoSign);
+                    }
+                } catch (RemoteException e) {
+                    System.err.println("Connection error occured");
+                }
             }
         });
         t.start();
-        try {
-            t.join();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+    }
 
+    @Override
+    public void uncheck(String nick) throws RemoteException {
+        remove(nick);
     }
 
     private synchronized void remove(String nick) {

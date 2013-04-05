@@ -10,7 +10,6 @@ import common.exceptions.ReservedBotNickException;
 import common.model.Board;
 
 import java.rmi.Naming;
-import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Scanner;
@@ -31,7 +30,7 @@ public class Client {
             final String nick = System.getProperty(PropertiesKeys.NICK);
 
             final TicTacToe serverStub = (TicTacToe) Naming.lookup("rmi://" + System.getProperty(PropertiesKeys.HOST) + ":" + System.getProperty(PropertiesKeys.PORT) + "/" + System.getProperty(PropertiesKeys.OBJECT_NAME));
-            final ClientListenerImpl listener = new ClientListenerImpl(serverStub, nick);
+            final ClientListenerImpl listener = new ClientListenerImpl();
             ClientListener meStub = (ClientListener) UnicastRemoteObject.exportObject(listener, 0);
             serverStub.register(meStub, nick);
 
@@ -40,29 +39,35 @@ public class Client {
                 public void run() {
                     System.out.println("\ncleanup & quit...");
                     try {
-                        serverStub.logout(nick);
+                        serverStub.uncheck(nick);
                         UnicastRemoteObject.unexportObject(listener, true);
-                    } catch (NoSuchObjectException e) {
-                        System.out.println("server already terminated");
                     } catch (RemoteException e) {
-                        e.printStackTrace();
+                        System.out.println("server already terminated");
                     }
                 }
             });
 
-            System.out.println("Available commands: list, play (bot | <user>)");
+            System.out.println("Available commands: await, list, play (bot | <user>)");
             Scanner in = new Scanner(System.in);
+            consoleLoop:
             while (true) {
-                String opponentObtainedPassively = listener.getNewOpponent();
-                if (opponentObtainedPassively != null) {
-                    System.out.println("You have been challlenged by " + opponentObtainedPassively + " !");
-                    beginGame(false, nick, opponentObtainedPassively, serverStub, listener);
-                    return;
-                }
-
                 System.out.print(">>> ");
                 String line = in.next();
+
                 switch (line) {
+                    case "await":
+                        synchronized (listener) {
+                            while (listener.getNewOpponent() == null) {
+                                listener.wait();
+                            }
+                        }
+                        String opponentObtainedPassively = listener.getNewOpponent();
+                        if (opponentObtainedPassively != null) {
+                            System.out.println("You have been challenged by " + opponentObtainedPassively + " !");
+                            break consoleLoop;
+                        } else {
+                            throw new RuntimeException("damn - synchronization failed");
+                        }
                     case "list":
                         System.out.println("Available players:");
                         for (String n : serverStub.getFreeNicks())
@@ -74,10 +79,10 @@ public class Client {
                             Board board = new Board();
                             serverStub.beginPlayingWithBot(nick, board);
 
-                            while (!board.someoneHasWon()) {
+                            while (!board.someoneHasWonOrTie()) {
                                 if (board.whoseMove() == Sign.BOT_SIGN)
                                     board = serverStub.makeBotMove(nick, board);
-                                if (board.someoneHasWon())
+                                if (board.someoneHasWonOrTie())
                                     break;
                                 System.out.println("=========================================================");
                                 System.out.println("board:\n" + board.getView());
@@ -98,73 +103,25 @@ public class Client {
                                     }
                                 }
                             }
-                            System.out.println("You " + ((board.whoWins() == Sign.NON_BOT_SIGN) ? "win !" : "lose"));
+                            System.out.println(board.getCommunicate(Sign.NON_BOT_SIGN));
                             System.out.println("board:\n" + board.getView());
                         } else if (!serverStub.getFreeNicks().contains(chosenOpponent)) {
                             System.out.println("player " + chosenOpponent + " no longer available. try again");
                             break;
                         } else {
-                            serverStub.challengeOpponent(nick, chosenOpponent);
-                            beginGame(true, nick, chosenOpponent, serverStub, listener);
+                            serverStub.beginGame(nick, chosenOpponent);
                         }
                         return;
                     default:
                         System.out.println("Unknown command");
                 }
             }
-        } catch (ReservedBotNickException | DuplicateNickException e) {    // TODO : more exceptions
+        } catch (ReservedBotNickException | DuplicateNickException e) {
             System.err.println(e.getLocalizedMessage());
             System.exit(0);
         } catch (Exception e) {
             System.err.println("Client exception:");
             throw new RuntimeException(e);
         }
-    }
-
-    private static void beginGame(boolean iBeganTheGame, String myNick, String opponent, TicTacToe serverStub, ClientListenerImpl listener) {
-        Scanner in = new Scanner(System.in);
-        Board board = null;
-        if (iBeganTheGame) {
-            board = new Board();
-        } else {
-            synchronized ()
-        }
-
-        final Sign mySign = iBeganTheGame ? Sign.NON_BOT_SIGN : Sign.BOT_SIGN;
-        while (!board.someoneHasWon()) {
-            if (board.whoseMove() == mySign) {
-                System.out.println("=========================================================");
-                System.out.println("board:\n" + board.getView());
-                System.out.println("your move ...");
-                int i, j;
-                while (true) {
-                    System.out.print(">> ");
-                    i = in.nextInt();
-                    j = in.nextInt();
-
-                    try {
-                        board.place(mySign, i, j);
-                        break;
-                    } catch (ArrayIndexOutOfBoundsException e) {
-                        System.out.println("Wrong indices. try again");
-                    } catch (BoardFieldNotEmptyException e) {
-                        System.out.println("field already taken. try again");
-                    }
-                }
-
-                if (board.someoneHasWon())
-                    break;
-            } else {
-                try {
-                    serverStub.notifyOpponentYourMove(opponent, board);
-                } catch (RemoteException e) {
-                    System.out.println("Problem connecting opponent. quiting");
-                    return;
-                }
-            }
-
-        }
-        System.out.println("You " + ((board.whoWins() == Sign.NON_BOT_SIGN) ? "win !" : "lose"));
-        System.out.println("board:\n" + board.getView());
     }
 }

@@ -37,11 +37,32 @@ public class Board implements Serializable {
                 return sign;
             }
         }
-        return Sign.EMPTY;
+
+        int blanks = 0;
+        for (Sign[] row : b) {
+            for (Sign sign : row) {
+                if (sign == Sign.EMPTY)
+                    ++blanks;
+            }
+        }
+        return (blanks == 0) ? Sign.EMPTY : null;
     }
 
-    public boolean someoneHasWon() {
-        return whoWins() != Sign.EMPTY;
+    public String getCommunicate(Sign yourSign) {
+        Sign hasWon = whoWins();
+        if (hasWon == Sign.EMPTY) {
+            return "There was a tie";
+        } else {
+            if (hasWon == yourSign) {
+                return "You won !";
+            } else {
+                return "You lost";
+            }
+        }
+    }
+
+    public boolean someoneHasWonOrTie() {
+        return whoWins() != null;
     }
 
     public String getView() {
