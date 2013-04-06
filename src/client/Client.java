@@ -75,7 +75,8 @@ public class Client {
                         break;
                     case "play":
                         String chosenOpponent = in.next();
-                        if (chosenOpponent.equals("bot")) {
+                        if (chosenOpponent.equals("bot") || chosenOpponent.equals(nick)) {
+                            System.out.println("Starting playing with bot");
                             Board board = new Board();
                             serverStub.beginPlayingWithBot(nick, board);
 
