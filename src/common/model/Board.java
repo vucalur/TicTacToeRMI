@@ -10,7 +10,7 @@ import java.util.EnumSet;
 import java.util.List;
 
 public class Board implements Serializable {
-    Sign[][] b = {{Sign.EMPTY, Sign.EMPTY, Sign.EMPTY}, {Sign.EMPTY, Sign.EMPTY, Sign.EMPTY}, {Sign.EMPTY, Sign.EMPTY, Sign.EMPTY}};
+    private final Sign[][] b = {{Sign.EMPTY, Sign.EMPTY, Sign.EMPTY}, {Sign.EMPTY, Sign.EMPTY, Sign.EMPTY}, {Sign.EMPTY, Sign.EMPTY, Sign.EMPTY}};
 
     public void place(Sign sign, int col, int row) throws BoardFieldNotEmptyException {
         if (col < 0 || col > 2 || row < 0 || row > 2) {
@@ -75,29 +75,6 @@ public class Board implements Serializable {
             sb.append("|\n");
         }
         return String.valueOf(sb);
-    }
-
-    public Sign whoseMove() {
-        int circlesCount = 0;
-        int crossesCount = 0;
-        for (Sign[] row : b) {
-            for (Sign sign : row) {
-                switch (sign) {
-                    case CROSS:
-                        ++crossesCount;
-                        break;
-                    case CIRCLE:
-                        ++circlesCount;
-                        break;
-                }
-            }
-        }
-
-        if (circlesCount == crossesCount) {
-            return Sign.CROSS;
-        } else {
-            return (circlesCount > crossesCount) ? Sign.CROSS : Sign.CIRCLE;
-        }
     }
 
     public void makeRandomBotMove() {

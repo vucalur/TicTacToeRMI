@@ -24,7 +24,7 @@
         <jar destfile="${jars}/common.jar">
             <fileset dir="${dest}/common" includes="**/*.class"/>
         </jar>
-        
+
         <copy file="${jars}/common.jar" todir="/tmp/"/>
 
         <javac srcdir="${src}/server" destdir="${dest}/server" >
@@ -35,8 +35,6 @@
             <classpath refid="classpath"/>
         </javac>
     </target>
-
-<!--java -Djava.rmi.server.codebase=file:/tmp/common.jar -Djava.rmi.server.hostname=192.168.0.6 -Djavrity.policy=dummy.policy -Dhost=192.168.0.6 -Dport=1100 -DobjectName=ttt -classpath /home/wojtek/Dropbox/home/wojtek/Documents/EAIE_Informatyka/06_sem/rozpro/2-zad/tttrmi/jars/common.jar:/home/wojtek/Dropbox/home/wojtek/Documents/EAIE_Informatyka/06_sem/rozpro/2-zad/tttrmi/build/classes/server:/home/wojtek/Dropbox/home/wojtek/Documents/EAIE_Informatyka/06_sem/rozpro/2-zad/tttrmi/build/classes/client -Dnick=jan2 client.Client-->
 
     <target name="start_server">
         <java fork="true" classname="server.TicTacToeServer">

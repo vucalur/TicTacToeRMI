@@ -1,4 +1,4 @@
-package common.model;
+package server;
 
 import common.ClientListener;
 
@@ -7,6 +7,7 @@ import java.io.Serializable;
 public class User implements Serializable {
     private final String nick;
     private final ClientListener listener;
+    public static final String BOT_NICK = "bot";
 
     public User(String nick, ClientListener listener) {
         this.nick = nick;

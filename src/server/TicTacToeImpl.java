@@ -6,7 +6,6 @@ import common.enums.Sign;
 import common.exceptions.DuplicateNickException;
 import common.exceptions.ReservedBotNickException;
 import common.model.Board;
-import common.model.User;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -14,11 +13,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class TicTacToeImpl extends UnicastRemoteObject implements TicTacToe {
-    private Map<String, User> loggedUsers = new HashMap<>();
-    private List<String> freeNicks = new ArrayList<>(); // currently not playing
-
+    private final Map<String, User> loggedUsers = new HashMap<>();
+    private final List<String> freeNicks = new ArrayList<>(); // currently not playing
+    private final ExecutorService executor = Executors.newCachedThreadPool();
 
     protected TicTacToeImpl() throws RemoteException {
     }
@@ -46,45 +47,18 @@ public class TicTacToeImpl extends UnicastRemoteObject implements TicTacToe {
     }
 
     @Override
-    public synchronized void beginPlayingWithBot(final String nick, final Board board) throws RemoteException {
-        freeNicks.remove(nick);
-    }
-
-    @Override
-    public Board makeBotMove(String nick, final Board board) throws RemoteException {
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                board.makeRandomBotMove();
-            }
-        });
-        t.start();
-        try {
-            t.join();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+    public void playWithOtherPlayer(String nick, String chosenOpponent) throws RemoteException {
+        synchronized (this) {
+            freeNicks.remove(nick);
+            freeNicks.remove(chosenOpponent);
         }
-        return board;
-    }
-
-    @Override
-    public synchronized void challengeOpponent(String me, String opponent) throws RemoteException {
-        freeNicks.remove(me);
-        freeNicks.remove(opponent);
-        User uOpponent = loggedUsers.get(opponent);
-
-        uOpponent.getListener().notifyGameStarted(me);
-    }
-
-    @Override
-    public void beginGame(String nick, String chosenOpponent) throws RemoteException {
-        challengeOpponent(nick, chosenOpponent);
         final ClientListener meListener = loggedUsers.get(nick).getListener();
         final ClientListener oppoListener = loggedUsers.get(chosenOpponent).getListener();
+        oppoListener.notifyGameStarted(nick);
         final Sign meSign = Sign.NON_BOT_SIGN;
         final Sign oppoSign = Sign.BOT_SIGN;
 
-        Thread t = new Thread(new Runnable() {
+        executor.submit(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -103,11 +77,37 @@ public class TicTacToeImpl extends UnicastRemoteObject implements TicTacToe {
                 }
             }
         });
-        t.start();
     }
 
     @Override
-    public void uncheck(String nick) throws RemoteException {
+    public void playWithBot(String nick) throws RemoteException {
+        synchronized (this) {
+            freeNicks.remove(nick);
+        }
+        final ClientListener clientListener = loggedUsers.get(nick).getListener();
+
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Board board = new Board();
+                    while (!board.someoneHasWonOrTie()) {
+                        board = clientListener.makeMove(board, Sign.NON_BOT_SIGN);
+                        if (board.someoneHasWonOrTie()) {
+                            clientListener.notifyEndOfGame(board, Sign.NON_BOT_SIGN);
+                            return;
+                        }
+                        board.makeRandomBotMove();
+                    }
+                } catch (RemoteException e) {
+                    System.err.println("Connection error occured");
+                }
+            }
+        });
+    }
+
+    @Override
+    public void unregister(String nick) throws RemoteException {
         remove(nick);
     }
 

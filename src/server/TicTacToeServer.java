@@ -7,7 +7,7 @@ import java.rmi.Naming;
 import java.rmi.registry.LocateRegistry;
 
 public class TicTacToeServer {
-    static TicTacToe impl;
+    private static TicTacToe impl;
 
     public static void main(String[] args) {
         for (String key : new String[]{PropertiesKeys.HOST, PropertiesKeys.PORT, PropertiesKeys.OBJECT_NAME}) {
